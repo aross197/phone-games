@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>2048 – Phone Games</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      background: #1a1a22;
+      padding: 12px;
+      border-radius: 14px;
+      width: min(92vw, 360px);
+      aspect-ratio: 1;
+    }
+    .tile {
+      background: #2a2a35;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f0f0f5;
+      transition: all 0.12s ease;
+    }
+    .tile[data-v="2"] { background: #3d3a5c; }
+    .tile[data-v="4"] { background: #4a4580; }
+    .tile[data-v="8"] { background: #6b5ce6; color: #fff; }
+    .tile[data-v="16"] { background: #7c5cff; color: #fff; }
+    .tile[data-v="32"] { background: #9b6dff; color: #fff; }
+    .tile[data-v="64"] { background: #b57aff; color: #fff; }
+    .tile[data-v="128"] { background: #00b4d8; color: #fff; font-size: 1.35rem; }
+    .tile[data-v="256"] { background: #00c4b4; color: #fff; font-size: 1.35rem; }
+    .tile[data-v="512"] { background: #00d4a0; color: #111; font-size: 1.35rem; }
+    .tile[data-v="1024"] { background: #ffd60a; color: #111; font-size: 1.15rem; }
+    .tile[data-v="2048"] { background: #ff9f1c; color: #111; font-size: 1.15rem; }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      gap: 0.8rem;
+    }
+    .overlay.hidden { display: none; }
+  </style>
+</head>
+<body class="game-page">
+  <div class="game-header">
+    <a href="index.html">← Back</a>
+    <h1>2048</h1>
+    <div class="score" id="score">0</div>
+  </div>
+
+  <div class="game-container" style="position:relative">
+    <div class="board" id="board"></div>
+    <div class="overlay hidden" id="overlay">
+      <div id="msg">Game Over</div>
+      <button class="btn" onclick="reset()">New Game</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    Swipe to move tiles
+  </div>
+
+  <script>
+    const boardEl = document.getElementById('board');
+    const scoreEl = document.getElementById('score');
+    const overlay = document.getElementById('overlay');
+    const msgEl = document.getElementById('msg');
+
+    let grid, score;
+
+    function emptyGrid() {
+      return Array.from({length:4}, () => Array(4).fill(0));
+    }
+
+    function addRandom() {
+      const empty = [];
+      for (let r=0;r<4;r++) for (let c=0;c<4;c++) if (!grid[r][c]) empty.push([r,c]);
+      if (!empty.length) return;
+      const [r,c] = empty[Math.floor(Math.random()*empty.length)];
+      grid[r][c] = Math.random() < 0.9 ? 2 : 4;
+    }
+
+    function render() {
+      boardEl.innerHTML = '';
+      for (let r=0;r<4;r++) {
+        for (let c=0;c<4;c++) {
+          const t = document.createElement('div');
+          t.className = 'tile';
+          const v = grid[r][c];
+          if (v) {
+            t.textContent = v;
+            t.dataset.v = v;
+          }
+          boardEl.appendChild(t);
+        }
+      }
+      scoreEl.textContent = score;
+    }
+
+    function slide(row) {
+      const arr = row.filter(x => x);
+      for (let i=0;i<arr.length-1;i++) {
+        if (arr[i] === arr[i+1]) {
+          arr[i] *= 2;
+          score += arr[i];
+          arr.splice(i+1,1);
+        }
+      }
+      while (arr.length < 4) arr.push(0);
+      return arr;
+    }
+
+    function move(dir) {
+      const old = JSON.stringify(grid);
+      if (dir === 'left') {
+        grid = grid.map(row => slide(row));
+      } else if (dir === 'right') {
+        grid = grid.map(row => slide(row.reverse()).reverse());
+      } else if (dir === 'up') {
+        let cols = [0,1,2,3].map(c => grid.map(r => r[c]));
+        cols = cols.map(col => slide(col));
+        grid = [0,1,2,3].map(r => cols.map(c => c[r]));
+      } else if (dir === 'down') {
+        let cols = [0,1,2,3].map(c => grid.map(r => r[c]));
+        cols = cols.map(col => slide(col.reverse()).reverse());
+        grid = [0,1,2,3].map(r => cols.map(c => c[r]));
+      }
+
+      if (JSON.stringify(grid) !== old) {
+        addRandom();
+        render();
+        checkEnd();
+      }
+    }
+
+    function checkEnd() {
+      // win
+      if (grid.some(row => row.includes(2048))) {
+        msgEl.textContent = 'You Win!';
+        overlay.classList.remove('hidden');
+        return;
+      }
+      // any empty?
+      if (grid.some(row => row.includes(0))) return;
+      // any merges possible?
+      for (let r=0;r<4;r++) for (let c=0;c<4;c++) {
+        const v = grid[r][c];
+        if ((c<3 && grid[r][c+1]===v) || (r<3 && grid[r+1][c]===v)) return;
+      }
+      msgEl.textContent = 'Game Over';
+      overlay.classList.remove('hidden');
+    }
+
+    function reset() {
+      grid = emptyGrid();
+      score = 0;
+      addRandom();
+      addRandom();
+      overlay.classList.add('hidden');
+      render();
+    }
+
+    // Touch
+    let sx, sy;
+    boardEl.addEventListener('touchstart', e => {
+      e.preventDefault();
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+    }, {passive:false});
+
+    boardEl.addEventListener('touchend', e => {
+      e.preventDefault();
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = e.changedTouches[0].clientY - sy;
+      if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        move(dx > 0 ? 'right' : 'left');
+      } else {
+        move(dy > 0 ? 'down' : 'up');
+      }
+    }, {passive:false});
+
+    // Keyboard
+    window.addEventListener('keydown', e => {
+      const map = {ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down'};
+      if (map[e.key]) {
+        e.preventDefault();
+        move(map[e.key]);
+      }
+    });
+
+    reset();
+  </script>
+</body>
+</html>
