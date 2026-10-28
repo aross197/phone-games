@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pong – Phone Games</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="game-page">
+  <div class="game-header">
+    <a href="index.html">← Back</a>
+    <h1>Pong</h1>
+    <div class="score" id="score">0 – 0</div>
+  </div>
+
+  <div class="game-container">
+    <canvas id="game" width="360" height="480"></canvas>
+  </div>
+
+  <div class="controls">
+    Drag or touch left side to move paddle
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    let playerY, aiY, ball, playerScore, aiScore, running;
+
+    function resetBall(dir = 1) {
+      ball = {
+        x: W/2,
+        y: H/2,
+        vx: 3.2 * dir,
+        vy: (Math.random() * 2 - 1) * 2.8
+      };
+    }
+
+    function reset() {
+      playerY = H/2 - 35;
+      aiY = H/2 - 35;
+      playerScore = 0;
+      aiScore = 0;
+      scoreEl.textContent = '0 – 0';
+      resetBall(Math.random() > 0.5 ? 1 : -1);
+      running = true;
+    }
+
+    function draw() {
+      // bg
+      ctx.fillStyle = '#111118';
+      ctx.fillRect(0, 0, W, H);
+
+      // center line
+      ctx.strokeStyle = '#2a2a35';
+      ctx.setLineDash([8, 10]);
+      ctx.beginPath();
+      ctx.moveTo(W/2, 0);
+      ctx.lineTo(W/2, H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // paddles
+      ctx.fillStyle = '#7c5cff';
+      ctx.fillRect(12, playerY, 10, 70);
+      ctx.fillStyle = '#00d4ff';
+      ctx.fillRect(W - 22, aiY, 10, 70);
+
+      // ball
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, 8, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    function update() {
+      if (!running) return;
+
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      // top/bottom
+      if (ball.y < 8 || ball.y > H - 8) ball.vy *= -1;
+
+      // player paddle
+      if (ball.x < 30 && ball.x > 12 && ball.y > playerY && ball.y < playerY + 70) {
+        ball.vx = Math.abs(ball.vx) * 1.05;
+        const hit = (ball.y - (playerY + 35)) / 35;
+        ball.vy = hit * 4;
+      }
+
+      // ai paddle
+      if (ball.x > W - 30 && ball.x < W - 12 && ball.y > aiY && ball.y < aiY + 70) {
+        ball.vx = -Math.abs(ball.vx) * 1.05;
+        const hit = (ball.y - (aiY + 35)) / 35;
+        ball.vy = hit * 4;
+      }
+
+      // score
+      if (ball.x < 0) {
+        aiScore++;
+        scoreEl.textContent = `${playerScore} – ${aiScore}`;
+        resetBall(1);
+      }
+      if (ball.x > W) {
+        playerScore++;
+        scoreEl.textContent = `${playerScore} – ${aiScore}`;
+        resetBall(-1);
+      }
+
+      // simple AI
+      const target = ball.y - 35;
+      aiY += (target - aiY) * 0.085;
+      aiY = Math.max(0, Math.min(H - 70, aiY));
+
+      draw();
+      requestAnimationFrame(update);
+    }
+
+    // Touch / drag control
+    function setPlayer(y) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = H / rect.height;
+      playerY = (y - rect.top) * scale - 35;
+      playerY = Math.max(0, Math.min(H - 70, playerY));
+    }
+
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      setPlayer(e.touches[0].clientY);
+    }, {passive:false});
+
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      setPlayer(e.touches[0].clientY);
+    }, {passive:false});
+
+    canvas.addEventListener('mousemove', e => {
+      setPlayer(e.clientY);
+    });
+
+    reset();
+    requestAnimationFrame(update);
+  </script>
+</body>
+</html>
