@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Memory – Phone Games</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      width: min(92vw, 360px);
+    }
+    .card {
+      aspect-ratio: 1;
+      background: #2a2a35;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      cursor: pointer;
+      transition: transform 0.2s, background 0.2s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .card.flipped, .card.matched {
+      background: #1e1e28;
+      transform: rotateY(180deg);
+    }
+    .card.matched {
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .card span {
+      display: none;
+    }
+    .card.flipped span, .card.matched span {
+      display: block;
+      transform: rotateY(180deg);
+    }
+  </style>
+</head>
+<body class="game-page">
+  <div class="game-header">
+    <a href="index.html">← Back</a>
+    <h1>Memory</h1>
+    <div class="score" id="moves">0 moves</div>
+  </div>
+
+  <div class="game-container">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="controls">
+    Tap cards to match pairs
+    <br>
+    <button class="btn" onclick="reset()">New Game</button>
+  </div>
+
+  <script>
+    const emojis = ['🍎','🍌','🍇','🍊','🍓','🍉','🍒','🥝'];
+    const boardEl = document.getElementById('board');
+    const movesEl = document.getElementById('moves');
+
+    let cards, flipped, lock, moves, matched;
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function reset() {
+      const pairs = shuffle([...emojis, ...emojis]);
+      cards = pairs.map((emoji, i) => ({ emoji, id: i, flipped: false, matched: false }));
+      flipped = [];
+      lock = false;
+      moves = 0;
+      matched = 0;
+      movesEl.textContent = '0 moves';
+      render();
+    }
+
+    function render() {
+      boardEl.innerHTML = '';
+      cards.forEach((c, i) => {
+        const div = document.createElement('div');
+        div.className = 'card' + (c.flipped || c.matched ? ' flipped' : '') + (c.matched ? ' matched' : '');
+        div.innerHTML = `<span>${c.emoji}</span>`;
+        div.onclick = () => flip(i);
+        boardEl.appendChild(div);
+      });
+    }
+
+    function flip(i) {
+      if (lock || cards[i].flipped || cards[i].matched) return;
+
+      cards[i].flipped = true;
+      flipped.push(i);
+      render();
+
+      if (flipped.length === 2) {
+        moves++;
+        movesEl.textContent = moves + (moves === 1 ? ' move' : ' moves');
+        lock = true;
+
+        const [a, b] = flipped;
+        if (cards[a].emoji === cards[b].emoji) {
+          cards[a].matched = cards[b].matched = true;
+          matched += 2;
+          flipped = [];
+          lock = false;
+          render();
+          if (matched === 16) {
+            setTimeout(() => alert(`Nice! Finished in ${moves} moves`), 300);
+          }
+        } else {
+          setTimeout(() => {
+            cards[a].flipped = cards[b].flipped = false;
+            flipped = [];
+            lock = false;
+            render();
+          }, 650);
+        }
+      }
+    }
+
+    reset();
+  </script>
+</body>
+</html>
